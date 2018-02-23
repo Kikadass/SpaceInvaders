@@ -2,6 +2,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv/cv.hpp>
 #include <fstream>
+#include <unistd.h>
 #include "include/Game.h"
 
 
@@ -39,7 +40,7 @@ Mat initializeTiles(int height, int width){
     Mat tiles = Mat(height, width, CV_32F);
     for (int i = 0; i < tilesV.size(); i++){
         for (int j = 0; j < tilesV.at(i).size(); j++){
-            tiles.at<float>(i, j) = tilesV.at(i).at(j) ;
+            tiles.at<float>(i, j) = tilesV.at(i).at(j);
         }
     }
 
@@ -70,18 +71,25 @@ void getButtonsPressed(bool pressed[]){
             throw runtime_error("The file has not appeared in 10s. Game is going to end here. File location: " + file);
         }
     } while (!myfile.is_open());
+    myfile.close();
+    usleep(2000); //10ms sleep
+    myfile.open (file);
 
     string line;
 
-    //TODO:: convert properly the file line to bool
-    getline(myfile, line);
-    pressed[0] = stod(line);
+    for (int i = 0; i < 3; i++) {
+        getline(myfile, line);
+        try {
+            if (stoi(line) == 0) pressed[i] = false;
+            else if (stoi(line) == 1) pressed[i] = true;
+            else throw runtime_error("Invalid boolean" + stoi(line));
+        }catch(invalid_argument e){
+            cout << "invalid_argument: stoi: no conversion in Line: " << line << endl;
+            pressed[i] = false;
+        }
 
-    getline(myfile, line);
-    pressed[1] = stod(line);
 
-    getline(myfile, line);
-    pressed[2] = stod(line);
+    }
 
     myfile.close();
 
@@ -92,99 +100,96 @@ void getButtonsPressed(bool pressed[]){
 
 int main() {
     //initialize variables
-    bool aiTraining = false;
+    bool aiTraining = true;
     int height = 16;
     int width = 20;
     float fps = 60;         // if FPS is larger the game goes faster
     float clocksPerUpdate;
-    int currentFrame = 0;
-    bool gameRunning = true;
-    Mat tiles = initializeTiles(height, width);
-    Game game = Game(height, width, tiles);
-    clock_t lastFrame;
-
 
     // if the program is running for aiTraining, the quicker the better.
-    if (aiTraining){
+    if (aiTraining) {
         fps = CLOCKS_PER_SEC;
     }
-    clocksPerUpdate = (float)CLOCKS_PER_SEC/fps;
+    clocksPerUpdate = (float) CLOCKS_PER_SEC / fps;
+
+    while(true) {
+        int currentFrame = 0;
+        bool gameRunning = true;
+        Mat tiles = initializeTiles(height, width);
+        Game game = Game(height, width, tiles);
+        clock_t lastFrame = clock();
+
+        while (gameRunning) {
+            clock_t now = clock();
+
+            // if statement to limit updates to have the right amount of updates per frame
+            if ((now - lastFrame) > clocksPerUpdate) {
+                currentFrame++;
+                lastFrame = now;
+
+                // initialize variables
+                Mat showTiles = tiles;
+                bool pressed[3];
+                int keyPressed;
+
+                // if the player is real, we want to show the game
+                if (!aiTraining) {
+                    scaleUp(showTiles, 20);
+                    keyPressed = waitKeyEx(1);
+                } else {
+
+                    //write tiles into file
+                    writeTiles(tiles);
+
+                    //read buttons to press from file
+                    getButtonsPressed(pressed);
+                }
+
+                // if pressed ESC it closes the program  (ESC = 27 ASCII)
+                if (keyPressed == 27) {
+                    return 0;
+                }
+
+                if (keyPressed == 32) {  // space
+                    pressed[0] = true;
+                } else pressed[0] = false;
+
+                if (keyPressed == 63235) {  // right
+                    pressed[1] = true;
+                } else pressed[1] = false;
+
+                if (keyPressed == 63234) {  // left
+                    pressed[2] = true;
+                } else pressed[2] = false;
 
 
+                //check if buttons were pressed
+                game.update(currentFrame, pressed);
 
-    lastFrame = clock();
-    while (gameRunning) {
-        clock_t now = clock();
-
-        // if statement to limit updates to have the right amount of updates per frame
-        if ((now - lastFrame) > clocksPerUpdate) {
-            currentFrame++;
-            lastFrame = now;
-
-            // initialize variables
-            Mat showTiles = tiles;
-            bool pressed[3];
-            int keyPressed;
-
-            // if the player is real, we want to show the game
-            if (!aiTraining) {
-                scaleUp(showTiles, 20);
-                keyPressed = waitKeyEx(1);
-            }
-            else {
-
-                //write tiles into file
-                writeTiles(tiles);
-
-                //read buttons to press from file
-                getButtonsPressed(pressed);
-            }
-
-            // if pressed ESC it closes the program  (ESC = 27 ASCII)
-            if (keyPressed == 27) {
-                return 0;
-            }
-
-            if (keyPressed == 32) {  // space
-                pressed[0] = true;
-            } else pressed[0] = false;
-
-            if (keyPressed == 63235) {  // right
-                pressed[1] = true;
-            } else pressed[1] = false;
-
-            if (keyPressed == 63234) {  // left
-                pressed[2] = true;
-            } else pressed[2] = false;
+                tiles = game.getGrid();
 
 
-            //check if buttons were pressed
-            game.update(currentFrame, pressed);
-
-            tiles = game.getGrid();
-
-
-            // if player killed all the enemies or is Game Over: end game
-            if (game.getScore() == 108 || game.isGameOver()){
-                gameRunning = false;
+                // if player killed all the enemies or is Game Over: end game
+                if (game.getScore() == 108 || game.isGameOver()) {
+                    gameRunning = false;
+                }
             }
         }
+
+
+        if (game.isGameOver()) cout << "GAME OVER! Score: " << game.getScore() << endl;
+        else cout << "YOU WIN! Score: " << game.getScore() << endl;
+
+        ofstream myfile;
+        string file = "../../AI-SpaceInvaders/Score.txt";
+        myfile.open(file);
+        if (!myfile.is_open()) {
+            throw runtime_error("Unable to open the file: " + file);
+        }
+
+        myfile << game.getScore();
+        myfile.close();
     }
-
-
-    if (game.isGameOver()) cout << "GAME OVER! Score: " << game.getScore() << endl;
-    else cout << "YOU WIN! Score: " << game.getScore() << endl;
-
-    ofstream myfile;
-    string file = "../../AI-SpaceInvaders/Score.txt";
-    myfile.open (file);
-    if (!myfile.is_open()){
-        throw runtime_error("Unable to open the file: "+ file);
-    }
-
-    myfile << game.getScore();
-    myfile.close();
-
 
     return 0;
 }
