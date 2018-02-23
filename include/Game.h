@@ -58,6 +58,8 @@ public:
 private:
     Mat grid;
     int score;
+    int shootingRate;
+    int lastShot;
     vector<Enemy> enemies;
     vector<Bullet> bullets;
     Player player;
@@ -66,6 +68,8 @@ private:
     bool changingDirection;
 
     void updateGrid();
+
+    void initializeVariables();
 };
 
 

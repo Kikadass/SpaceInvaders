@@ -10,10 +10,7 @@ int Game::WIDTH = 20;
 Game::Game() {
     HEIGHT = 0;
     WIDTH = 0;
-    score = 0;
-    gameOver = false;
-    movingRight = true;
-    changingDirection = false;
+    initializeVariables();
 }
 
 Game::Game(int h, int w, Mat g) {
@@ -25,19 +22,22 @@ Game::Game(int h, int w, Mat g) {
 
             //if found an enemy in the grid
             if (grid.at<float>(y,x) == 0.3f){
-                cout << "Adding enemy " << x << " " << y << endl;
                 enemies.push_back(Enemy(240, 10, x, y));
             }
             //if found player in the grid
             else if (grid.at<float>(y,x) == 1){
-                cout << "Adding player " << x << " " << y << endl;
                 player = Player(360, 0, x, y);
             }
         }
     }
 
-    score = 0;
+    initializeVariables();
+}
 
+void Game::initializeVariables(){
+    score = 0;
+    shootingRate = 3600/180;
+    lastShot = 0;
     gameOver = false;
     movingRight = true;
     changingDirection = false;
@@ -46,8 +46,9 @@ Game::Game(int h, int w, Mat g) {
 void Game::update(int currentFrame, bool pressed[]){
 
     // space pressed
-    if (pressed[0]) {
+    if (pressed[0] && currentFrame - lastShot > shootingRate) {
         bullets.push_back(Bullet(0, 360, player.getXPosition(), player.getYPosition()-1));
+        lastShot = currentFrame;
     }
     player.update(currentFrame, pressed[1], pressed[2]);
 

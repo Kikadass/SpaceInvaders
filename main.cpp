@@ -15,6 +15,14 @@ void scaleUp(Mat image, int scale){
 int main() {
     int height = 16;
     int width = 20;
+    float fps = 60;
+    float clocksPerUpdate = (float)CLOCKS_PER_SEC/fps;
+    int currentFrame = 0;
+    bool gameRunning = true;
+    Game game;
+    Mat tiles;
+    clock_t lastFrame;
+
 
     vector<vector<float>> tilesV = {{0.0, 0.0, 0.0, 0.0 ,0.3 ,0.3 ,0.3 ,0.3 ,0.3 ,0.3 ,0.3 ,0.3 ,0.3 ,0.3 ,0.3 ,0.3, 0.0, 0.0, 0.0, 0.0},
                                     {0.0, 0.0, 0.0, 0.0 ,0.3 ,0.3 ,0.3 ,0.3 ,0.3 ,0.3 ,0.3 ,0.3 ,0.3 ,0.3 ,0.3 ,0.3, 0.0, 0.0, 0.0, 0.0},
@@ -34,7 +42,8 @@ int main() {
                                     {0.0, 0.0, 0.0, 0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0, 0.0, 0.0, 0.0, 0.0},
     };
 
-    Mat tiles = Mat(height, width, CV_32F);
+
+    tiles = Mat(height, width, CV_32F);
     for (int i = 0; i < tilesV.size(); i++){
         for (int j = 0; j < tilesV.at(i).size(); j++){
             tiles.at<float>(i, j) = tilesV.at(i).at(j) ;
@@ -42,17 +51,12 @@ int main() {
     }
 
 
-    Game game = Game(height, width, tiles);
-    float fps = 60;
-    float clocksPerUpdate = (float)CLOCKS_PER_SEC/fps;
-    int currentFrame = 0;
+    game = Game(height, width, tiles);
 
-    cout << clocksPerUpdate << endl;
-
-    clock_t lastFrame = clock();
-    while (!game.isGameOver()) {
+    lastFrame = clock();
+    while (gameRunning) {
         clock_t now = clock();
-        //cout << (now - lastFrame) <<  endl;
+
         if ((now - lastFrame) > clocksPerUpdate) {
             currentFrame++;
             lastFrame = now;
@@ -80,15 +84,23 @@ int main() {
                 pressed[2] = true;
             } else pressed[2] = false;
 
+
             //check if buttons were pressed
             game.update(currentFrame, pressed);
 
             tiles = game.getGrid();
+
+
+            // if player killed all the enemies or is Game Over: end game
+            if (game.getScore() == 108 || game.isGameOver()){
+                gameRunning = false;
+            }
         }
     }
 
-    game.getScore();
-    cout << "GAME OVER! Score: " << game.getScore() << endl;
+
+    if (game.isGameOver()) cout << "GAME OVER! Score: " << game.getScore() << endl;
+    else cout << "YOU WIN! Score: " << game.getScore() << endl;
 
     return 0;
 }
