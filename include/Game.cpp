@@ -10,13 +10,16 @@ int Game::WIDTH = 20;
 Game::Game() {
     HEIGHT = 0;
     WIDTH = 0;
+    efficientShooting = false;
     initializeVariables();
 }
 
-Game::Game(int h, int w, Mat g) {
+Game::Game(int h, int w, Mat g, bool efficientShooting) {
     HEIGHT = h;
     WIDTH = w;
     grid = g;
+    this->efficientShooting = efficientShooting;
+
     for (int y = 0; y < grid.cols; y++){
         for (int x = 0; x < grid.rows; x++){
 
@@ -43,14 +46,18 @@ void Game::initializeVariables(){
     changingDirection = false;
 }
 
-void Game::update(int currentFrame, bool pressed[]){
+void Game::update(int currentFrame, vector<bool*> pressed){
 
     // space pressed
-    if (pressed[0] && currentFrame - lastShot > shootingRate) {
+    if (*pressed[0] && currentFrame - lastShot > shootingRate) {
         bullets.push_back(Bullet(0, 360, player.getXPosition(), player.getYPosition()-1));
+
+        // shooting costs 1 point, in order to learn to shoot efficiently
+        if (efficientShooting) score--;
+
         lastShot = currentFrame;
     }
-    player.update(currentFrame, pressed[1], pressed[2]);
+    player.update(currentFrame, *pressed[1], *pressed[2]);
 
     for (int i = 0; i < bullets.size(); i++) {
         //remove bullets if they go off the screen
@@ -98,7 +105,7 @@ void Game::updateGrid(){
 
         //check for bullets hitting enemies
         if (grid.at<float>(enemies.at(i).getYPosition(), enemies.at(i).getXPosition()) == 0.5f){
-            score++;
+            score += 5;
 
             //delete bullet that collided with enemy
             for (int j = 0; j < bullets.size(); j++){

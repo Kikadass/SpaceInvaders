@@ -56,43 +56,62 @@ void writeTiles(Mat tiles){
     }
 
     myfile << tiles;
+    myfile << "\n";
+    myfile << "Finished!";
     myfile.close();
 }
 
-void getButtonsPressed(bool pressed[]){
-    string file = "../../AI-SpaceInvaders/Buttons.txt";
+void openFileCheck(string file){
     ifstream myfile;
-
     int maxTime = 10*CLOCKS_PER_SEC; //10s
     clock_t start = clock();
-    do{
-        myfile.open (file);
-        if (clock() - start > maxTime){
-            throw runtime_error("The file has not appeared in 10s. Game is going to end here. File location: " + file);
-        }
-    } while (!myfile.is_open());
-    myfile.close();
-    usleep(2000); //10ms sleep
-    myfile.open (file);
+    string line = "";
 
+    do {
+        do {
+            myfile.open(file);
+            if (clock() - start > maxTime) {
+                throw runtime_error(
+                        "The file has not appeared in 10s. Game is going to end here. File location: " + file);
+            }
+
+        } while (!myfile.is_open());
+
+
+        // get the last line
+        while (getline(myfile, line));
+
+        myfile.close();
+// if line == Finished! compare will return false (0)
+    }while (line.compare("Finished!"));
+}
+
+void getButtonsPressed(vector<bool*> pressed){
+    string file = "../../AI-SpaceInvaders/Buttons.txt";
+    ifstream myfile;
     string line;
 
+
+    // check if file can be oppened
+    openFileCheck(file);
+
+    myfile.open(file);
     for (int i = 0; i < 3; i++) {
         getline(myfile, line);
         try {
-            if (stoi(line) == 0) pressed[i] = false;
-            else if (stoi(line) == 1) pressed[i] = true;
+            if (stoi(line) == 0) *pressed[i] = false;
+            else if (stoi(line) == 1) *pressed[i] = true;
             else throw runtime_error("Invalid boolean" + stoi(line));
         }catch(invalid_argument e){
             cout << "invalid_argument: stoi: no conversion in Line: " << line << endl;
-            pressed[i] = false;
+            *pressed[i] = false;
+            throw runtime_error("invalid_argument: stoi: no conversion in Line: " + line);
         }
 
 
     }
 
     myfile.close();
-
 
     //delete file
     std::remove(file.c_str());
@@ -100,23 +119,28 @@ void getButtonsPressed(bool pressed[]){
 
 int main() {
     //initialize variables
-    bool aiTraining = true;
+    int gamesPlayed = 0;
+    bool aiTraining = false;
+    bool showScreen = true;
+    bool efficientShooting = true;
     int height = 16;
     int width = 20;
     float fps = 60;         // if FPS is larger the game goes faster
     float clocksPerUpdate;
 
     // if the program is running for aiTraining, the quicker the better.
-    if (aiTraining) {
+    if (aiTraining && !showScreen) {
         fps = CLOCKS_PER_SEC;
     }
     clocksPerUpdate = (float) CLOCKS_PER_SEC / fps;
+    Mat tiles;
 
     while(true) {
         int currentFrame = 0;
+
         bool gameRunning = true;
-        Mat tiles = initializeTiles(height, width);
-        Game game = Game(height, width, tiles);
+        tiles = initializeTiles(height, width);
+        Game game = Game(height, width, tiles, efficientShooting);
         clock_t lastFrame = clock();
 
         while (gameRunning) {
@@ -129,14 +153,22 @@ int main() {
 
                 // initialize variables
                 Mat showTiles = tiles;
-                bool pressed[3];
+                vector<bool*> pressed;
+                for (int i = 0; i < 3; i++) {
+                    pressed.push_back(new bool(false));
+                }
+
                 int keyPressed;
 
-                // if the player is real, we want to show the game
-                if (!aiTraining) {
+
+                // if the player is real, wait for a keypress and show screen
+                if (!aiTraining || showScreen) {
                     scaleUp(showTiles, 20);
+
                     keyPressed = waitKeyEx(1);
-                } else {
+
+                }
+                if (aiTraining) {
 
                     //write tiles into file
                     writeTiles(tiles);
@@ -145,22 +177,30 @@ int main() {
                     getButtonsPressed(pressed);
                 }
 
-                // if pressed ESC it closes the program  (ESC = 27 ASCII)
-                if (keyPressed == 27) {
-                    return 0;
+                else {
+                    // if pressed ESC it closes the program  (ESC = 27 ASCII)
+                    if (keyPressed == 27) {
+                        return 0;
+                    }
+
+                    if (keyPressed == 32) {  // space
+                        *pressed[0] = true;
+                    } else
+                        *pressed[0] = false;
+
+
+                    if (keyPressed == 63235) {  // right
+                        *pressed[1] = true;
+                    } else
+                        *pressed[1] = false;
+
+
+                    if (keyPressed == 63234) {  // left
+                        *pressed[2] = true;
+                    } else
+                        *pressed[2] = false;
+
                 }
-
-                if (keyPressed == 32) {  // space
-                    pressed[0] = true;
-                } else pressed[0] = false;
-
-                if (keyPressed == 63235) {  // right
-                    pressed[1] = true;
-                } else pressed[1] = false;
-
-                if (keyPressed == 63234) {  // left
-                    pressed[2] = true;
-                } else pressed[2] = false;
 
 
                 //check if buttons were pressed
@@ -182,13 +222,19 @@ int main() {
 
         ofstream myfile;
         string file = "../../AI-SpaceInvaders/Score.txt";
+
         myfile.open(file);
         if (!myfile.is_open()) {
             throw runtime_error("Unable to open the file: " + file);
         }
 
         myfile << game.getScore();
+        myfile << "\n";
+        myfile << "Finished!";
         myfile.close();
+
+        gamesPlayed++;
+        showScreen = (gamesPlayed %100 == 0);
     }
 
     return 0;

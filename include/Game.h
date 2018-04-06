@@ -17,12 +17,13 @@ class Game {
 public:
     static int HEIGHT;
     static int WIDTH;
+    bool efficientShooting;
 
     Game();
 
-    Game(int h, int w, Mat g);
+    Game(int h, int w, Mat g, bool efficientShooting);
 
-    void update(int currentFrame, bool pressed[]);
+    void update(int currentFrame, vector<bool*> pressed);
 
 
     //GETTERS
