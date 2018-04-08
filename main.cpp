@@ -120,8 +120,8 @@ void getButtonsPressed(vector<bool*> pressed){
 int main() {
     //initialize variables
     int gamesPlayed = 0;
-    bool aiTraining = false;
-    bool showScreen = true;
+    bool aiTraining = true;
+    bool showScreen = false;
     bool efficientShooting = true;
     int height = 16;
     int width = 20;
@@ -210,7 +210,7 @@ int main() {
 
 
                 // if player killed all the enemies or is Game Over: end game
-                if (game.getScore() == 108 || game.isGameOver()) {
+                if (game.getEnemies().size() == 0 || game.isGameOver()) {
                     gameRunning = false;
                 }
             }
